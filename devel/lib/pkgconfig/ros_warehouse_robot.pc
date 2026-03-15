@@ -1,0 +1,8 @@
+prefix=/home/a/ros_warehouse_robot/devel
+
+Name: ros_warehouse_robot
+Description: Description of ros_warehouse_robot
+Version: 1.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: rospy std_msgs sensor_msgs geometry_msgs nav_msgs move_base_msgs actionlib tf cv_bridge image_transport

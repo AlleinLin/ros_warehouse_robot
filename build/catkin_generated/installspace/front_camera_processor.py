@@ -1,0 +1,513 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+
+import rospy
+import cv2
+import numpy as np
+import math
+from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
+from std_msgs.msg import String
+from geometry_msgs.msg import Twist
+
+class GentleLaneProcessor(object):
+    def __init__(self):
+        rospy.init_node('gentle_lane_processor', anonymous=False)
+        
+        self.bridge = CvBridge()
+        
+        # 🔥 宽松的车道线检测参数 - 适配变粗的车道线
+        self.yellow_lower = np.array([15, 60, 60])   # 更宽泛的黄色下限
+        self.yellow_upper = np.array([40, 255, 255]) # 更宽泛的黄色上限
+        
+        # 🔥 温和的合规性检测参数 - 大幅降低敏感度
+        self.min_yellow_ratio = 0.003  # 降低到0.3%（原来0.8%）
+        self.critical_yellow_ratio = 0.001  # 降低到0.1%（原来0.3%）
+        self.safe_yellow_ratio = 0.010  # 降低到1.0%（原来1.5%）
+        
+        # 🔥 PID式控制参数 - 温和修正而非停止
+        self.lane_center_tolerance = 0.30  # 增加容忍度（原来0.15）
+        self.correction_enabled = True
+        self.gentle_correction_strength = 0.08  # 大幅降低（原来0.3）
+        self.max_correction_angular = 0.15  # 大幅降低（原来0.5）
+        
+        # 🔥 防止频繁干预的参数
+        self.intervention_threshold = 10  # 需要连续违规次数才干预
+        self.max_violations = 15  # 增加最大违规容忍度（原来3）
+        self.correction_cooldown = 2.0  # 增加冷却时间（原来0.3）
+        self.gentle_mode_duration = 30.0  # 温和模式持续时间
+        
+        # Publishers
+        self.lane_guidance_pub = rospy.Publisher('/front_lane_guidance', String, queue_size=10)
+        self.lane_assist_pub = rospy.Publisher('/lane_assist_cmd', Twist, queue_size=10)  # 改名，表示辅助而非控制
+        self.debug_pub = rospy.Publisher('/front_camera_debug', Image, queue_size=1)
+        self.compliance_pub = rospy.Publisher('/lane_compliance_status', String, queue_size=10)
+        
+        # Subscribers
+        rospy.Subscriber('/camera/image_raw', Image, self.image_callback)
+        rospy.Subscriber('/robot_state', String, self.robot_state_callback)  
+        rospy.Subscriber('/current_zone', String, self.zone_callback)
+        rospy.Subscriber('/navigation/command', String, self.nav_command_callback)
+        
+        # 状态控制
+        self.robot_state = "INIT"
+        self.current_zone = "unknown"
+        self.navigation_active = False
+        self.gentle_assist_mode = True  # 默认开启温和辅助模式
+        
+        # 🔥 温和的违规监控
+        self.violation_count = 0
+        self.consecutive_violations = 0  # 连续违规计数
+        self.consecutive_safe_frames = 0
+        self.required_safe_frames = 20  # 增加安全帧要求
+        
+        # 🔥 PID式控制历史
+        self.lane_history = []
+        self.last_offset_error = 0.0
+        self.integral_error = 0.0
+        self.derivative_error = 0.0
+        
+        # PID系数 - 温和控制
+        self.kp = 0.1  # 比例系数，大幅降低
+        self.ki = 0.02  # 积分系数，防止累积偏差
+        self.kd = 0.05  # 微分系数，减少震荡
+        
+        # 🔥 车道线中心检测
+        self.lane_center_x = None
+        self.image_center_x = 320  # 640/2
+        
+        # 🔥 实时状态跟踪
+        self.last_lane_status = "unknown"
+        self.last_correction_time = 0
+        self.gentle_mode_start_time = rospy.Time.now()
+        
+        # 🔥 减少紧急干预
+        self.emergency_threshold = 0.0005  # 进一步降低紧急阈值
+        self.emergency_count = 0
+        self.max_emergency_count = 5  # 增加紧急计数容忍度
+        
+        rospy.loginfo("GentleLaneProcessor initialized for GENTLE LANE ASSISTANCE (PID-style)")
+        
+    def robot_state_callback(self, msg):
+        """跟踪机器人状态"""
+        old_state = self.robot_state
+        self.robot_state = msg.data
+        
+        # 🔥 只在导航状态下启用温和辅助
+        navigation_states = ["NAVIGATE_TO_PICKUP", "NAVIGATE_TO_DROP", "RETURN_TO_PICKUP", "EXIT_PICKUP_ZONE"]
+        self.gentle_assist_mode = (self.robot_state in navigation_states)
+        
+        if old_state != self.robot_state:
+            if self.gentle_assist_mode:
+                rospy.loginfo("🔥 Gentle lane assistance activated for state: %s", self.robot_state)
+                self.reset_pid_controller()  # 重置PID控制器
+            else:
+                rospy.logdebug("Gentle lane assistance disabled for state: %s", self.robot_state)
+            
+    def zone_callback(self, msg):
+        """区域变化回调"""
+        old_zone = self.current_zone
+        self.current_zone = msg.data
+        
+        if old_zone != self.current_zone:
+            rospy.logdebug("Zone change: %s -> %s", old_zone, self.current_zone)
+    
+    def nav_command_callback(self, msg):
+        """导航命令回调"""
+        command = msg.data
+        
+        # 当收到导航命令时启用温和辅助模式
+        if command.startswith(("goto_", "return_", "exit_")):
+            self.navigation_active = True
+            self.gentle_assist_mode = True
+            self.reset_control_state()  # 重置控制状态
+            rospy.loginfo("🔥 Gentle lane assistance activated for command: %s", command)
+        elif command == "stop":
+            self.navigation_active = False
+            self.gentle_assist_mode = False
+                
+    def reset_pid_controller(self):
+        """重置PID控制器"""
+        self.last_offset_error = 0.0
+        self.integral_error = 0.0
+        self.derivative_error = 0.0
+        self.lane_history = []
+        
+    def reset_control_state(self):
+        """重置控制状态"""
+        self.violation_count = 0
+        self.consecutive_violations = 0
+        self.consecutive_safe_frames = 0
+        self.emergency_count = 0
+        self.gentle_mode_start_time = rospy.Time.now()
+        self.reset_pid_controller()
+                
+    def image_callback(self, msg):
+        """🔥 温和的图像处理回调"""
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+            
+            # 🔥 执行温和的车道线检测
+            compliance_result = self.gentle_lane_detection(cv_image)
+            
+            # 🔥 发布温和的合规状态
+            self.publish_gentle_status(compliance_result)
+            
+            # 🔥 在温和模式下进行PID式修正
+            if self.gentle_assist_mode and self.should_provide_assistance():
+                self.apply_gentle_pid_correction(compliance_result, cv_image)
+                
+            # 🔥 发布调试图像
+            debug_image = self.create_gentle_debug_image(cv_image, compliance_result)
+            self.publish_debug_image(debug_image)
+                
+        except Exception as e:
+            rospy.logerr("Gentle lane processing error: %s", str(e))
+            
+    def gentle_lane_detection(self, image):
+        """🔥 温和的车道线检测"""
+        height, width = image.shape[:2]
+        
+        # 🔥 检测图像下半部分的车道线
+        roi_image = image[height//2:, :]
+        
+        # Convert to HSV
+        hsv = cv2.cvtColor(roi_image, cv2.COLOR_BGR2HSV)
+        
+        # 🔥 创建宽松的黄色车道线掩码
+        lane_mask = cv2.inRange(hsv, self.yellow_lower, self.yellow_upper)
+        
+        # 🔥 温和的形态学操作
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))  # 增大核尺寸
+        lane_mask = cv2.morphologyEx(lane_mask, cv2.MORPH_OPEN, kernel)
+        lane_mask = cv2.morphologyEx(lane_mask, cv2.MORPH_CLOSE, kernel)
+        
+        # 🔥 计算黄色像素比例
+        total_yellow_pixels = np.sum(lane_mask > 0)
+        total_pixels = lane_mask.size
+        yellow_ratio = total_yellow_pixels / float(total_pixels)
+        
+        # 🔥 检测车道线位置和中心
+        lane_center_x, lane_positions = self.detect_lane_center_gentle(lane_mask, width)
+        
+        # 🔥 温和的合规性分析
+        compliance_result = self.analyze_gentle_compliance(yellow_ratio, lane_center_x, lane_positions, width)
+        
+        # 🔥 更新温和的历史记录
+        self.update_gentle_history(compliance_result)
+        
+        return compliance_result
+        
+    def detect_lane_center_gentle(self, mask, image_width):
+        """🔥 温和的车道线中心检测"""
+        # 寻找车道线轮廓
+        try:
+            _, contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        except ValueError:
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        lane_positions = []
+        total_lane_area = 0
+        weighted_x_sum = 0
+        
+        # 🔥 降低轮廓面积要求，适应变粗的车道线
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area > 100:  # 大幅降低要求（原来200）
+                # 计算轮廓的重心
+                M = cv2.moments(contour)
+                if M["m00"] != 0:
+                    cx = int(M["m10"] / M["m00"])
+                    cy = int(M["m01"] / M["m00"])
+                    
+                    lane_positions.append((cx, cy, area))
+                    
+                    # 加权计算总体中心
+                    weighted_x_sum += cx * area
+                    total_lane_area += area
+        
+        # 计算加权车道线中心
+        if total_lane_area > 0:
+            lane_center_x = weighted_x_sum / total_lane_area
+            self.lane_center_x = lane_center_x
+        else:
+            lane_center_x = None
+            # 🔥 温和模式：如果检测不到车道线，保持上一次的值
+            if hasattr(self, 'lane_center_x') and self.lane_center_x is not None:
+                lane_center_x = self.lane_center_x
+            
+        return lane_center_x, lane_positions
+        
+    def analyze_gentle_compliance(self, yellow_ratio, lane_center_x, lane_positions, image_width):
+        """🔥 温和的车道线合规性分析"""
+        result = {
+            'status': 'lane_ok',  # 默认状态改为OK
+            'yellow_ratio': yellow_ratio,
+            'lane_center_x': lane_center_x,
+            'lane_positions': lane_positions,
+            'image_center_x': self.image_center_x,
+            'offset_ratio': 0.0,
+            'severity': 'safe'  # 默认严重程度改为安全
+        }
+        
+        # 🔥 基于黄色像素比例的宽松判断
+        if yellow_ratio < self.emergency_threshold:
+            result['status'] = 'slight_deviation'  # 改为轻微偏离
+            result['severity'] = 'warning'  # 降级为警告
+        elif yellow_ratio < self.critical_yellow_ratio:
+            result['status'] = 'minor_violation'  # 改为轻微违规
+            result['severity'] = 'caution'  # 降级为注意
+        elif yellow_ratio < self.min_yellow_ratio:
+            result['status'] = 'lane_guidance_needed'  # 改为需要引导
+            result['severity'] = 'info'  # 降级为信息
+        elif yellow_ratio > self.safe_yellow_ratio:
+            result['status'] = 'lane_center'
+            result['severity'] = 'safe'
+        else:
+            result['status'] = 'lane_detected'
+            result['severity'] = 'safe'
+            
+        # 🔥 基于车道线位置的温和判断
+        if lane_center_x is not None:
+            offset = lane_center_x - self.image_center_x
+            offset_ratio = offset / float(self.image_center_x)
+            result['offset_ratio'] = offset_ratio
+            
+            # 🔥 更宽松的偏移判断
+            if abs(offset_ratio) < self.lane_center_tolerance:
+                result['status'] = 'lane_center'
+                result['severity'] = 'safe'
+            elif abs(offset_ratio) < 0.6:  # 大幅增加容忍度
+                if offset_ratio > 0:
+                    result['status'] = 'lane_right_gentle'
+                else:
+                    result['status'] = 'lane_left_gentle'
+                result['severity'] = 'info'  # 降级
+            else:
+                # 只有在极端偏离时才标记为需要修正
+                result['status'] = 'gentle_correction_needed'
+                result['severity'] = 'caution'  # 降级
+        
+        return result
+        
+    def update_gentle_history(self, compliance_result):
+        """🔥 更新温和的合规性历史记录"""
+        self.lane_history.append(compliance_result['status'])
+        if len(self.lane_history) > 20:  # 增加历史记录长度
+            self.lane_history.pop(0)
+            
+        # 🔥 温和的违规计数更新
+        if compliance_result['severity'] in ['warning', 'caution']:
+            self.consecutive_violations += 1
+            self.consecutive_safe_frames = 0
+            
+            # 只有连续违规才增加总计数
+            if self.consecutive_violations >= 5:  # 需要连续5次违规
+                self.violation_count += 1
+                self.consecutive_violations = 0
+        elif compliance_result['severity'] == 'safe':
+            self.consecutive_safe_frames += 1
+            self.consecutive_violations = 0
+            
+            # 安全帧可以减少违规计数
+            if self.consecutive_safe_frames >= self.required_safe_frames:
+                self.violation_count = max(0, self.violation_count - 2)  # 更快恢复
+                self.consecutive_safe_frames = 0
+        
+    def should_provide_assistance(self):
+        """🔥 判断是否应该提供辅助"""
+        # 检查冷却时间
+        current_time = rospy.Time.now().to_sec()
+        if current_time - self.last_correction_time < self.correction_cooldown:
+            return False
+            
+        # 检查违规程度
+        if self.violation_count < self.intervention_threshold:
+            return False
+            
+        # 检查温和模式持续时间
+        gentle_duration = (rospy.Time.now() - self.gentle_mode_start_time).to_sec()
+        if gentle_duration < 5.0:  # 前5秒不干预，让move_base稳定
+            return False
+            
+        return True
+        
+    def apply_gentle_pid_correction(self, compliance_result, image):
+        """🔥 应用温和的PID修正"""
+        if not self.should_provide_assistance():
+            return
+            
+        current_time = rospy.Time.now().to_sec()
+        
+        # 🔥 只在需要时进行温和修正
+        severity = compliance_result['severity']
+        
+        if severity in ['warning', 'caution'] and self.violation_count >= self.intervention_threshold:
+            correction_cmd = self.calculate_gentle_pid_command(compliance_result)
+            
+            if correction_cmd:
+                # 🔥 发布为辅助命令而非控制命令
+                self.lane_assist_pub.publish(correction_cmd)
+                self.last_correction_time = current_time
+                
+                rospy.logdebug("🔧 GENTLE PID ASSIST: %s, offset=%.3f, angular=%.3f", 
+                             compliance_result['status'], compliance_result['offset_ratio'], 
+                             correction_cmd.angular.z)
+        
+    def calculate_gentle_pid_command(self, compliance_result):
+        """🔥 计算温和的PID修正命令"""
+        if compliance_result['lane_center_x'] is None:
+            return None
+            
+        # 当前偏移误差
+        offset_ratio = compliance_result['offset_ratio']
+        current_error = offset_ratio
+        
+        # 积分误差（累积）
+        self.integral_error += current_error
+        
+        # 限制积分项防止积分饱和
+        max_integral = 0.5
+        self.integral_error = max(-max_integral, min(max_integral, self.integral_error))
+        
+        # 微分误差（变化率）
+        self.derivative_error = current_error - self.last_offset_error
+        self.last_offset_error = current_error
+        
+        # PID输出
+        pid_output = (self.kp * current_error + 
+                     self.ki * self.integral_error + 
+                     self.kd * self.derivative_error)
+        
+        # 🔥 温和的角度修正
+        angular_correction = -pid_output  # 负号因为要向相反方向修正
+        
+        # 严格限制修正强度
+        angular_correction = max(-self.max_correction_angular, 
+                                min(self.max_correction_angular, angular_correction))
+        
+        # 🔥 创建温和的修正命令
+        cmd = Twist()
+        cmd.linear.x = 0.0  # 不干预线速度，让move_base控制
+        cmd.linear.y = 0.0
+        cmd.linear.z = 0.0
+        cmd.angular.x = 0.0
+        cmd.angular.y = 0.0
+        cmd.angular.z = angular_correction  # 只提供温和的角度辅助
+        
+        return cmd
+        
+    def publish_gentle_status(self, compliance_result):
+        """🔥 发布温和的合规状态"""
+        status = compliance_result['status']
+        
+        # 发布车道线引导信息
+        if status != self.last_lane_status:
+            guidance_msg = String()
+            guidance_msg.data = status
+            self.lane_guidance_pub.publish(guidance_msg)
+            
+            # 发布详细的合规状态
+            compliance_msg = String()
+            compliance_msg.data = "status:{},severity:{},ratio:{:.4f},violations:{},gentle_mode:{}".format(
+                status, compliance_result['severity'], 
+                compliance_result['yellow_ratio'], self.violation_count, self.gentle_assist_mode)
+            self.compliance_pub.publish(compliance_msg)
+            
+            # 只在真正有问题时才警告
+            if compliance_result['severity'] in ['warning', 'caution'] and self.violation_count > self.intervention_threshold:
+                rospy.logwarn("🔧 Gentle Lane Assist: %s (ratio=%.4f, violations=%d)", 
+                             status, compliance_result['yellow_ratio'], self.violation_count)
+            
+            self.last_lane_status = status
+        
+    def create_gentle_debug_image(self, original, compliance_result):
+        """🔥 创建温和的调试图像"""
+        debug_image = original.copy()
+        height, width = debug_image.shape[:2]
+        
+        # 🔥 绘制ROI区域
+        cv2.rectangle(debug_image, (0, height//2), (width, height), (255, 255, 0), 1)
+        
+        # 🔥 绘制图像中心线
+        cv2.line(debug_image, (self.image_center_x, 0), (self.image_center_x, height), (255, 255, 255), 1)
+        
+        # 🔥 绘制车道线中心
+        if compliance_result['lane_center_x'] is not None:
+            center_x = int(compliance_result['lane_center_x'])
+            cv2.line(debug_image, (center_x, height//2), (center_x, height), (0, 255, 0), 2)
+            
+            # 绘制偏移信息
+            offset = center_x - self.image_center_x
+            if abs(offset) > 20:
+                arrow_start = (self.image_center_x, height//2 + 50)
+                arrow_end = (center_x, height//2 + 50)
+                cv2.arrowedLine(debug_image, arrow_start, arrow_end, (0, 255, 255), 2)
+        
+        # 🔥 绘制车道线位置点
+        for pos in compliance_result['lane_positions']:
+            cx, cy, area = pos
+            cy_adjusted = cy + height//2
+            cv2.circle(debug_image, (cx, cy_adjusted), 3, (0, 255, 255), -1)
+        
+        # 🔥 显示温和控制状态信息
+        status_text = "Gentle: {} ({})".format(compliance_result['status'], compliance_result['severity'])
+        cv2.putText(debug_image, status_text, (10, 30), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+        
+        ratio_text = "Yellow: {:.4f}".format(compliance_result['yellow_ratio'])
+        cv2.putText(debug_image, ratio_text, (10, 55), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        
+        if compliance_result['lane_center_x'] is not None:
+            offset_text = "Offset: {:.3f}".format(compliance_result['offset_ratio'])
+            cv2.putText(debug_image, offset_text, (10, 80), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        
+        # PID信息
+        pid_text = "PID: P={:.3f} I={:.3f} D={:.3f}".format(
+            self.kp * self.last_offset_error, 
+            self.ki * self.integral_error, 
+            self.kd * self.derivative_error)
+        cv2.putText(debug_image, pid_text, (10, 105), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 255), 1)
+        
+        violations_text = "Violations: {}/{}".format(self.violation_count, self.max_violations)
+        cv2.putText(debug_image, violations_text, (10, 130), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+        
+        mode_text = "Gentle Assist: {} | Nav: {}".format(
+            self.gentle_assist_mode, self.navigation_active)
+        cv2.putText(debug_image, mode_text, (10, 155), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 255), 1)
+        
+        # 🔥 温和的状态颜色编码
+        if compliance_result['severity'] == 'warning':
+            cv2.rectangle(debug_image, (0, 0), (width, 25), (0, 165, 255), -1)
+            cv2.putText(debug_image, "GENTLE LANE GUIDANCE", (width//2 - 120, 18), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+        elif compliance_result['severity'] == 'safe':
+            cv2.rectangle(debug_image, (0, 0), (width, 25), (0, 255, 0), -1)
+            cv2.putText(debug_image, "LANE OK", (width//2 - 40, 18), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+        elif compliance_result['severity'] == 'caution':
+            cv2.rectangle(debug_image, (0, 0), (width, 25), (0, 255, 255), -1)
+            cv2.putText(debug_image, "LANE CAUTION", (width//2 - 70, 18), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 1)
+        
+        return debug_image
+        
+    def publish_debug_image(self, debug_image):
+        """发布调试图像"""
+        try:
+            debug_msg = self.bridge.cv2_to_imgmsg(debug_image, "bgr8")
+            self.debug_pub.publish(debug_msg)
+        except Exception as e:
+            rospy.logerr("Debug image publish error: %s", str(e))
+
+if __name__ == '__main__':
+    try:
+        processor = GentleLaneProcessor()
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        rospy.loginfo("GentleLaneProcessor terminated")

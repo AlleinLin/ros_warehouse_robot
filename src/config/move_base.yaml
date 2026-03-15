@@ -1,0 +1,187 @@
+# move_base_params.yaml - 配置直线导航，避免弧线
+shutdown_costmaps: false
+
+controller_frequency: 10.0
+controller_patience: 5.0
+
+planner_frequency: 5.0
+planner_patience: 10.0
+
+oscillation_timeout: 10.0
+oscillation_distance: 0.2
+
+# 全局规划器配置 - 强制直线路径
+base_global_planner: "navfn/NavfnROS"
+NavfnROS:
+  allow_unknown: false
+  use_dijkstra: true
+  use_quadratic: true
+  use_grid_path: true
+  old_navfn_behavior: false
+
+# 本地规划器配置 - DWA用于精确控制
+base_local_planner: "dwa_local_planner/DWAPlannerROS"
+
+DWAPlannerROS:
+  # 🔥 机器人配置 - 匹配URDF
+  max_vel_x: 0.4
+  min_vel_x: 0.0
+  max_vel_y: 0.0  # 差速驱动，不允许侧向移动
+  min_vel_y: 0.0
+  max_vel_theta: 0.8
+  min_vel_theta: -0.8
+  
+  # 🔥 加速度限制 - 平滑但响应快
+  acc_lim_x: 0.5
+  acc_lim_y: 0.0
+  acc_lim_theta: 1.0
+  
+  # 🔥 路径跟踪参数 - 强制直线
+  path_distance_bias: 32.0      # 增加路径跟踪权重
+  goal_distance_bias: 20.0      # 目标距离权重
+  occdist_scale: 0.02           # 降低障碍物权重，优先跟踪路径
+  forward_point_distance: 0.325 # 前瞻距离
+  stop_time_buffer: 0.2
+  scaling_speed: 0.25
+  max_scaling_factor: 0.2
+  
+  # 🔥 振荡恢复
+  oscillation_reset_dist: 0.25
+  escape_reset_dist: 0.10
+  escape_reset_theta: 0.10
+
+  # 🔥 直线导航优化
+  prefer_forward_cost_function: true
+  heading_scoring: true
+  heading_scoring_timestep: 0.8
+  
+  # 🔥 路径窗口 - 小窗口强制直线
+  vx_samples: 6
+  vy_samples: 1  # 只有1个vy样本（0），强制直线
+  vth_samples: 20
+  
+  # 🔥 模拟参数
+  sim_time: 2.0
+  sim_granularity: 0.02
+  angular_sim_granularity: 0.02
+  
+  # 🔥 容忍度 - 精确到达目标
+  xy_goal_tolerance: 0.15
+  yaw_goal_tolerance: 0.15
+  latch_xy_goal_tolerance: true
+
+# 🔥 全局代价地图配置
+global_costmap:
+  global_frame: map
+  robot_base_frame: base_link
+  update_frequency: 2.0
+  publish_frequency: 1.0
+  static_map: true
+  rolling_window: false
+  width: 20.0
+  height: 20.0
+  resolution: 0.05
+  transform_tolerance: 0.5
+  
+  plugins:
+    - {name: static_layer, type: "costmap_2d::StaticLayer"}
+    - {name: obstacle_layer, type: "costmap_2d::ObstacleLayer"}
+    - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
+  
+  static_layer:
+    enabled: true
+    map_topic: /map
+    
+  obstacle_layer:
+    enabled: true
+    max_obstacle_height: 0.60
+    origin_z: 0.0
+    z_resolution: 0.2
+    z_voxels: 2
+    unknown_threshold: 15
+    mark_threshold: 0
+    combination_method: 1
+    track_unknown_space: false
+    obstacle_range: 2.5
+    raytrace_range: 3.0
+    origin_z: 0.0
+    
+    observation_sources: laser_scan_sensor
+    laser_scan_sensor:
+      sensor_frame: laser_link
+      data_type: LaserScan
+      topic: scan
+      marking: true
+      clearing: true
+      min_obstacle_height: 0.25
+      max_obstacle_height: 0.35
+      
+  inflation_layer:
+    enabled: true
+    cost_scaling_factor: 8.0
+    inflation_radius: 0.35
+
+# 🔥 本地代价地图配置 - 小而精确
+local_costmap:
+  global_frame: odom
+  robot_base_frame: base_link
+  update_frequency: 5.0
+  publish_frequency: 2.0
+  static_map: false
+  rolling_window: true
+  width: 4.0
+  height: 4.0
+  resolution: 0.05
+  transform_tolerance: 0.5
+  
+  plugins:
+    - {name: obstacle_layer, type: "costmap_2d::ObstacleLayer"}
+    - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
+    
+  obstacle_layer:
+    enabled: true
+    max_obstacle_height: 0.60
+    origin_z: 0.0
+    z_resolution: 0.2
+    z_voxels: 2
+    unknown_threshold: 15
+    mark_threshold: 0
+    combination_method: 1
+    track_unknown_space: false
+    obstacle_range: 2.5
+    raytrace_range: 3.0
+    origin_z: 0.0
+    
+    observation_sources: laser_scan_sensor
+    laser_scan_sensor:
+      sensor_frame: laser_link
+      data_type: LaserScan
+      topic: scan
+      marking: true
+      clearing: true
+      min_obstacle_height: 0.25
+      max_obstacle_height: 0.35
+      
+  inflation_layer:
+    enabled: true
+    cost_scaling_factor: 8.0
+    inflation_radius: 0.35
+
+# 🔥 恢复行为配置
+recovery_behaviors:
+  - name: 'conservative_reset'
+    type: 'clear_costmap_recovery/ClearCostmapRecovery'
+  - name: 'rotate_recovery'
+    type: 'rotate_recovery/RotateRecovery'
+  - name: 'aggressive_reset'
+    type: 'clear_costmap_recovery/ClearCostmapRecovery'
+
+conservative_reset:
+  reset_distance: 1.0
+
+aggressive_reset:
+  reset_distance: 3.0
+
+rotate_recovery:
+  sim_granularity: 0.017
+  frequency: 20.0

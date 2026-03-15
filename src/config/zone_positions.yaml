@@ -1,0 +1,31 @@
+# 🔥 根据warehouse.world文件的正确区域配置
+
+pickup_zone:
+  center: [0.0, -1.5]                    # 与world文件一致
+  radius: 1.5                            # 🔥 修正：从2.5缩小到1.2，符合3x2米区域
+  safe_exit_point: [0.0, 1.5]
+  approach_point: [0.0, -0.5]           # pickup区域边缘
+
+drop_zones:
+  red:
+    center: [1.0, 5.0]                   # 根据world文件中的delivery_area_red位置
+    radius: 0.9                          # 🔥 适中的检测范围
+    approach_point: [1.0, 4.0]
+  blue:
+    center: [3.0, 5.0]                   # 根据world文件中的delivery_area_blue位置  
+    radius: 0.9                          # 🔥 适中的检测范围
+    approach_point: [3.0, 4.0]
+  green:
+    center: [-5.0, 1.0]                  # 根据world文件中的delivery_area_green位置
+    radius: 0.9                          # 🔥 适中的检测范围
+    approach_point: [-4.0, 1.0]
+  purple:
+    center: [5.0, 1.0]                   # 根据world文件中的delivery_area_purple位置
+    radius: 0.9                          # 🔥 适中的检测范围
+    approach_point: [4.0, 1.0]
+
+safe_navigation_points:
+  home: [0.0, 1.5]
+  checkpoint_1: [0.0, 3.0]
+  checkpoint_2: [-5.0, 3.0]
+  checkpoint_3: [5.0, 3.0]

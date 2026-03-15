@@ -1,0 +1,25 @@
+<launch>
+  <!-- Load parameters -->
+  <rosparam file="$(find ros_warehouse_robot)/config/global_params.yaml" command="load"/>
+  <rosparam file="$(find ros_warehouse_robot)/config/zone_positions.yaml" command="load"/>
+  <rosparam file="$(find ros_warehouse_robot)/config/lane_config.yaml" command="load"/>
+  <rosparam file="$(find ros_warehouse_robot)/config/front_cam_config.yaml" command="load"/>
+
+  <!-- Core control nodes -->
+  <node name="main_controller" pkg="ros_warehouse_robot" type="main_controller.py" output="screen"/>
+  <node name="location_checker" pkg="ros_warehouse_robot" type="location_checker.py" output="screen"/>
+  
+  <!-- Vision processing nodes -->
+  <node name="lane_detector" pkg="ros_warehouse_robot" type="lane_detector.py" output="screen"/>
+  <node name="package_detector" pkg="ros_warehouse_robot" type="package_detector.py" output="screen"/>
+  <node name="front_camera_processor" pkg="ros_warehouse_robot" type="front_camera_processor.py" output="screen"/>
+  
+  <!-- Sensor fusion and control -->
+  <node name="sensor_fusion" pkg="ros_warehouse_robot" type="sensor_fusion.py" output="screen"/>
+  <node name="navigation_manager" pkg="ros_warehouse_robot" type="navigation_manager.py" output="screen"/>
+  <node name="manipulation_manager" pkg="ros_warehouse_robot" type="manipulation_manager.py" output="screen"/>
+  
+  <!-- Monitoring -->
+  <node name="monitor_gui" pkg="ros_warehouse_robot" type="monitor_gui.py" output="screen"/>
+
+</launch>

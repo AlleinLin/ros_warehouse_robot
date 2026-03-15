@@ -1,0 +1,17 @@
+front_cam:
+  resolution: [640, 480]
+  fps: 30
+  
+  hsv_filter:
+    lower: [0, 30, 30]
+    upper: [180, 255, 255]
+    
+  obstacle_detection:
+    min_area: 500
+    safe_distance_threshold: 0.5
+    danger_distance_threshold: 0.3
+    
+  depth_estimation:
+    focal_length: 525.0
+    baseline: 0.1
+    object_real_height: 0.3

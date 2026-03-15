@@ -1,0 +1,101 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- 加载机器人描述 -->
+    <param name="robot_description" command="$(find xacro)/xacro '$(find ros_warehouse_robot)/urdf/warehouse_robot_with_arm.urdf'" />
+
+    <!-- 启动Gazebo世界 -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="world_name" value="$(find ros_warehouse_robot)/worlds/warehouse.world"/>
+        <arg name="paused" value="false"/>
+        <arg name="use_sim_time" value="true"/>
+        <arg name="gui" value="true"/>
+        <arg name="recording" value="false"/>
+        <arg name="debug" value="false"/>
+        <arg name="verbose" value="true"/>
+    </include>
+
+    <!-- 生成机器人 -->
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn_robot" output="screen" 
+          args="-urdf -param robot_description -model warehouse_robot -x 0 -y 1.5 -z 0.3 -Y -1.47"/>
+
+    <!-- 机器人状态发布器 -->
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+        <param name="publish_frequency" value="50.0"/>
+        <param name="tf_prefix" value=""/>
+    </node>
+
+    <!-- 关节状态发布器 -->
+    <node pkg="joint_state_publisher" type="joint_state_publisher" name="joint_state_publisher">
+        <param name="use_gui" value="false"/>
+        <param name="rate" value="50"/>
+    </node>
+
+    <!-- 启动导航系统 -->
+    <include file="$(find ros_warehouse_robot)/launch/navigation.launch"/>
+
+    <!-- 加载全局参数 -->
+    <rosparam file="$(find ros_warehouse_robot)/config/global_params.yaml" command="load"/>
+    <rosparam file="$(find ros_warehouse_robot)/config/zone_positions.yaml" command="load"/>
+    <rosparam file="$(find ros_warehouse_robot)/config/lane_config.yaml" command="load"/>
+    <rosparam file="$(find ros_warehouse_robot)/config/front_cam_config.yaml" command="load"/>
+
+    <!-- 🔥 俯视摄像头处理器 - 新增的车道线跟随控制器 -->
+    <node pkg="ros_warehouse_robot" type="overhead_camera_processor.py" name="overhead_camera_processor" output="screen"/>
+
+    <!-- 视觉处理节点 -->
+    <node pkg="ros_warehouse_robot" type="lane_detector.py" name="lane_detector" output="screen">
+        <rosparam file="$(find ros_warehouse_robot)/config/lane_config.yaml" command="load"/>
+    </node>
+
+    <node pkg="ros_warehouse_robot" type="package_detector.py" name="package_detector" output="screen"/>
+
+    <node pkg="ros_warehouse_robot" type="front_camera_processor.py" name="front_camera_processor" output="screen">
+        <rosparam file="$(find ros_warehouse_robot)/config/front_cam_config.yaml" command="load"/>
+    </node>
+
+    <!-- 传感器融合和位置检查 -->
+    <node pkg="ros_warehouse_robot" type="sensor_fusion.py" name="sensor_fusion" output="screen"/>
+    
+    <node pkg="ros_warehouse_robot" type="location_checker.py" name="location_checker" output="screen">
+        <rosparam file="$(find ros_warehouse_robot)/config/zone_positions.yaml" command="load"/>
+    </node>
+
+    <!-- 操作和导航管理器 -->
+    <node pkg="ros_warehouse_robot" type="manipulation_manager.py" name="manipulation_manager" output="screen"/>
+    
+    <node pkg="ros_warehouse_robot" type="navigation_manager.py" name="navigation_manager" output="screen">
+        <rosparam file="$(find ros_warehouse_robot)/config/zone_positions.yaml" command="load"/>
+    </node>
+
+    <!-- 主控制器 -->
+    <node pkg="ros_warehouse_robot" type="main_controller.py" name="main_controller" output="screen"/>
+
+    <!-- 监控GUI (可选) -->
+    <node pkg="ros_warehouse_robot" type="monitor_gui.py" name="monitor_gui" output="screen" required="false"/>
+
+    <!-- 启动RViz进行可视化 -->
+    <node pkg="rviz" type="rviz" name="rviz" output="screen" 
+          args="-d $(find ros_warehouse_robot)/config/navigation.rviz" required="false"/>
+
+    <!-- 诊断工具 -->
+    <node pkg="diagnostic_aggregator" type="aggregator_node" name="diagnostic_aggregator" output="screen">
+        <rosparam>
+            pub_rate: 1.0
+            base_path: ''
+            analyzers:
+                navigation:
+                    type: diagnostic_aggregator/GenericAnalyzer
+                    path: Navigation
+                    contains: ['move_base', 'amcl', 'map_server']
+                sensors:
+                    type: diagnostic_aggregator/GenericAnalyzer  
+                    path: Sensors
+                    contains: ['laser', 'camera']
+                warehouse_robot:
+                    type: diagnostic_aggregator/GenericAnalyzer
+                    path: WarehouseRobot
+                    contains: ['main_controller', 'navigation_manager', 'manipulation_manager', 'overhead_camera_processor']
+        </rosparam>
+    </node>
+
+</launch>

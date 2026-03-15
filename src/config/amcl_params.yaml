@@ -1,0 +1,54 @@
+# AMCL定位系统参数配置
+
+# 整体滤波器参数
+min_particles: 100
+max_particles: 2000
+kld_err: 0.01
+kld_z: 0.99
+update_min_d: 0.1
+update_min_a: 0.1
+resample_interval: 1
+transform_tolerance: 0.1
+recovery_alpha_slow: 0.001
+recovery_alpha_fast: 0.1
+gui_publish_rate: 10.0
+save_pose_rate: 0.5
+use_map_topic: false
+first_map_only: false
+
+# 激光模型参数 (likelihood_field模型)
+laser_model_type: "likelihood_field"
+laser_likelihood_max_dist: 2.0
+laser_max_range: 8.0
+laser_min_range: 0.1
+laser_max_beams: 180
+laser_z_hit: 0.95
+laser_z_short: 0.01
+laser_z_max: 0.01
+laser_z_rand: 0.03
+laser_sigma_hit: 0.2
+laser_lambda_short: 0.1
+
+# 里程计模型参数
+odom_model_type: "diff"
+odom_alpha1: 0.2  # 旋转引起的旋转噪声
+odom_alpha2: 0.2  # 平移引起的旋转噪声  
+odom_alpha3: 0.2  # 平移引起的平移噪声
+odom_alpha4: 0.2  # 旋转引起的平移噪声
+odom_alpha5: 0.1  # 额外的平移噪声
+
+# 初始位姿估计
+initial_pose_x: 0.0
+initial_pose_y: 1.5
+initial_pose_a: -1.47
+initial_cov_xx: 0.25
+initial_cov_yy: 0.25
+initial_cov_aa: 0.2
+
+# TF帧设置
+odom_frame_id: "odom"
+base_frame_id: "base_link"
+global_frame_id: "map"
+
+# 选择性重采样
+selective_resampling: false

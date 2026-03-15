@@ -1,0 +1,20 @@
+lane_detection:
+  color:
+    lower_hsv: [20, 100, 100]
+    upper_hsv: [30, 255, 255]
+  
+  processing:
+    blur_kernel_size: 5
+    min_contour_area: 500
+    max_contour_area: 50000
+    
+  lane_following:
+    center_offset_tolerance: 0.1
+    max_angular_velocity: 0.5
+    max_linear_velocity: 0.3
+    
+  camera_params:
+    image_width: 1920
+    image_height: 1080
+    roi_y_start: 400
+    roi_y_end: 800

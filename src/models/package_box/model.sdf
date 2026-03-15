@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<sdf version="1.4">
+  <model name="package_box">
+    <static>false</static>
+    <link name="link">
+      <inertial>
+        <mass>0.5</mass>
+        <inertia>
+          <ixx>0.00208</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.00208</iyy>
+          <iyz>0</iyz>
+          <izz>0.00208</izz>
+        </inertia>
+      </inertial>
+      
+      <collision name="collision">
+        <geometry>
+          <box>
+            <size>0.3 0.3 0.3</size>
+          </box>
+        </geometry>
+      </collision>
+      
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.3 0.3 0.3</size>
+          </box>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/DarkGrey</name>
+          </script>
+        </material>
+      </visual>
+      
+      <!-- Barcode on top -->
+      <visual name="barcode">
+        <pose>0 0 0.151 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.2 0.2 0.001</size>
+          </box>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/White</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

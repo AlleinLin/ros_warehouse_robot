@@ -1,0 +1,2 @@
+.
+-DCATKIN_DEVEL_PREFIX=/home/a/ros_warehouse_robot/devel -DCMAKE_INSTALL_PREFIX=/home/a/ros_warehouse_robot/install -G Unix Makefiles

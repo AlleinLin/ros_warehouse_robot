@@ -1,0 +1,21 @@
+robot_spawn:
+  position: [0.0, 1.5, 0.3]
+  orientation_yaw: -1.47
+
+pickup_colors: ['red', 'blue', 'green', 'purple']
+
+safe_distances:
+  pickup_approach: 0.8
+  drop_approach: 0.6
+  obstacle_threshold: 0.5
+
+navigation:
+  tolerance:
+    position: 0.2
+    orientation: 0.3
+  timeout: 30.0
+  
+robot_params:
+  base_radius: 0.28
+  arm_reach: 0.6
+  gripper_height: 0.3

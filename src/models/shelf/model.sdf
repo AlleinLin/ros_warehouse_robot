@@ -1,0 +1,943 @@
+<?xml version="1.0"?>
+<sdf version="1.4">
+  <model name="shelf">
+    <static>true</static>
+    <link name="link">
+      <collision name="collision">
+        <geometry>
+          <box>
+            <size>1.5 0.5 2</size>
+          </box>
+        </geometry>
+      </collision>
+      
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>1.5 0.5 2</size>
+              <n>Gazebo/Blue</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 3 - Green destination -->
+    <model name="package_3">
+      <pose>0 -1.5 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Green</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 4 - Purple destination -->
+    <model name="package_4">
+      <pose>0.5 -1.5 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Purple</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 5 - Red destination -->
+    <model name="package_5">
+      <pose>1 -1.5 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Red</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Packages 6-20 follow similar pattern with alternating colors -->
+    <!-- I'll show a few more and then summarize the pattern -->
+    
+    <!-- Package 6 - Blue destination -->
+    <model name="package_6">
+      <pose>-1 -2 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Blue</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 7 - Green destination -->
+    <model name="package_7">
+      <pose>-0.5 -2 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Green</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 8 - Purple destination -->
+    <model name="package_8">
+      <pose>0 -2 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Purple</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 9 - Red destination -->
+    <model name="package_9">
+      <pose>0.5 -2 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Red</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 10 - Blue destination -->
+    <model name="package_10">
+      <pose>1 -2 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Blue</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 11 - Green destination -->
+    <model name="package_11">
+      <pose>-1 -1 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Green</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 12 - Purple destination -->
+    <model name="package_12">
+      <pose>-0.5 -1 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Purple</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 13 - Red destination -->
+    <model name="package_13">
+      <pose>0 -1 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Red</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 14 - Blue destination -->
+    <model name="package_14">
+      <pose>0.5 -1 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Blue</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 15 - Green destination -->
+    <model name="package_15">
+      <pose>1 -1 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Green</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 16 - Purple destination -->
+    <model name="package_16">
+      <pose>-1.2 -0.5 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Purple</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 17 - Red destination -->
+    <model name="package_17">
+      <pose>-0.6 -0.5 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Red</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 18 - Blue destination -->
+    <model name="package_18">
+      <pose>0 -0.5 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Blue</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 19 - Green destination -->
+    <model name="package_19">
+      <pose>0.6 -0.5 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/White</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="color_indicator">
+          <pose>0 0 0.152 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/Green</n>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Package 20 - Purple destination -->
+    <model name="package_20">
+      <pose>1.2 -0.5 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.3</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <n>Gazebo/DarkGrey</n>
+            </script>
+          </material>
+        </visual>
+        <visual name="barcode">
+          <pose>0 0 0.151 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.001</size>
+            </box>
+          </geometry>
+          <material>
+            <script>

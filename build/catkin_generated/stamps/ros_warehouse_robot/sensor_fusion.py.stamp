@@ -1,0 +1,343 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import rospy
+import numpy as np
+from std_msgs.msg import String
+from sensor_msgs.msg import LaserScan
+from geometry_msgs.msg import Twist
+
+class GentleSensorFusion(object):
+    def __init__(self):
+        rospy.init_node('gentle_sensor_fusion', anonymous=False)
+        
+        # Publishers
+        self.fused_obstacle_pub = rospy.Publisher('/fused_obstacle_info', String, queue_size=10)
+        self.gentle_avoidance_pub = rospy.Publisher('/gentle_avoidance_assist', Twist, queue_size=10)
+        
+        # Subscribers
+        rospy.Subscriber('/scan', LaserScan, self.laser_callback)
+        rospy.Subscriber('/front_obstacle_info', String, self.front_camera_callback)
+        rospy.Subscriber('/lane_compliance_status', String, self.lane_compliance_callback)
+        rospy.Subscriber('/robot_state', String, self.state_callback)
+        rospy.Subscriber('/current_zone', String, self.zone_callback)
+        rospy.Subscriber('/navigation/arrived', String, self.nav_status_callback)
+        
+        # Sensor data storage
+        self.laser_data = None
+        self.front_obstacle_status = "clear"
+        self.lane_compliance = "lane_ok"
+        self.robot_state = "INIT"
+        self.current_zone = "unknown"
+        self.navigation_status = "idle"
+        
+        # 🔥 极温和的检测参数 - 进一步降低干预
+        self.emergency_distance = 0.12  # 12cm极近距离
+        self.warning_distance = 0.20    # 20cm警告距离  
+        self.safe_distance = 0.30       # 30cm安全距离
+        
+        # 激光雷达参数
+        self.min_valid_range = 0.10
+        self.max_valid_range = 5.0
+        
+        # 🔥 温和的融合策略
+        self.gentle_fusion_enabled = True
+        self.obstacle_history = []
+        self.obstacle_history_size = 5  # 需要连续确认
+        self.last_published_status = None
+        
+        # 🔥 极保守的避障干预策略
+        self.avoidance_enabled = False  # 默认关闭直接控制
+        self.assistance_enabled = True  # 只提供辅助建议
+        self.last_avoidance_time = 0
+        self.avoidance_cooldown = 3.0  # 3秒冷却时间
+        
+        # 🔥 温和的状态检查
+        self.consecutive_safe_readings = 0
+        self.required_safe_readings = 10
+        self.lane_assist_weight = 0.3  # 车道线辅助权重
+        
+        # 🔥 导航状态感知
+        self.is_navigating = False
+        self.allow_gentle_assist = True
+        
+        rospy.loginfo("GentleSensorFusion initialized with MINIMAL interference to move_base")
+        
+    def state_callback(self, msg):
+        """根据状态调整融合策略"""
+        old_state = self.robot_state
+        self.robot_state = msg.data
+        
+        # 🔥 只在特定状态下启用温和避障辅助
+        assist_states = ["NAVIGATE_TO_PICKUP", "NAVIGATE_TO_DROP", "RETURN_TO_PICKUP", "EXIT_PICKUP_ZONE"]
+        self.allow_gentle_assist = (self.robot_state in assist_states)
+        
+        # 🔥 在操作状态下完全禁用干预
+        manipulation_states = ["PICK_PACKAGE", "PLACE_PACKAGE", "DETECT_PACKAGE_COLOR"]
+        if self.robot_state in manipulation_states:
+            self.avoidance_enabled = False
+            self.assistance_enabled = False
+        else:
+            self.assistance_enabled = True
+        
+        if old_state != self.robot_state:
+            rospy.logdebug("Gentle fusion: State %s -> %s, Assist: %s", 
+                         old_state, self.robot_state, self.allow_gentle_assist)
+        
+    def zone_callback(self, msg):
+        """根据区域调整策略"""
+        old_zone = self.current_zone
+        self.current_zone = msg.data
+        
+        # 🔥 在pickup区域内更加保守
+        if self.current_zone == "pickup_zone":
+            self.emergency_distance = 0.10  # 更近的紧急距离
+            self.avoidance_cooldown = 5.0   # 更长的冷却时间
+        else:
+            self.emergency_distance = 0.12
+            self.avoidance_cooldown = 3.0
+        
+        if old_zone != self.current_zone:
+            rospy.logdebug("Gentle fusion: Zone %s -> %s", old_zone, self.current_zone)
+            
+    def nav_status_callback(self, msg):
+        """导航状态回调"""
+        self.navigation_status = msg.data
+        self.is_navigating = "navigating" in self.navigation_status.lower()
+        
+    def laser_callback(self, msg):
+        """处理激光雷达数据"""
+        self.laser_data = msg
+        self.process_gentle_fusion()
+        
+    def front_camera_callback(self, msg):
+        """处理前置摄像头障碍检测"""
+        self.front_obstacle_status = msg.data
+        self.process_gentle_fusion()
+        
+    def lane_compliance_callback(self, msg):
+        """处理车道线合规状态"""
+        self.lane_compliance = msg.data
+        
+    def process_gentle_fusion(self):
+        """🔥 温和的传感器融合处理"""
+        if self.laser_data is None:
+            return
+            
+        # 🔥 温和的障碍物检测
+        obstacle_result = self.gentle_obstacle_detection()
+        
+        # 🔥 应用历史过滤避免误报
+        filtered_result = self.apply_gentle_history_filter(obstacle_result)
+        
+        # 🔥 只有状态变化时才发布
+        if filtered_result != self.last_published_status:
+            fused_msg = String()
+            fused_msg.data = filtered_result
+            self.fused_obstacle_pub.publish(fused_msg)
+            self.last_published_status = filtered_result
+            
+            if filtered_result != "clear":
+                rospy.loginfo("🔧 Gentle obstacle detection: %s", filtered_result)
+        
+        # 🔥 只在确实需要时提供温和辅助
+        if (self.allow_gentle_assist and 
+            self.assistance_enabled and 
+            self.can_provide_gentle_assistance()):
+            self.provide_gentle_assistance(filtered_result)
+            
+    def gentle_obstacle_detection(self):
+        """🔥 温和的障碍物检测"""
+        if self.laser_data is None:
+            return "clear"
+            
+        ranges = np.array(self.laser_data.ranges)
+        
+        # 有效范围过滤
+        valid_mask = (ranges >= self.min_valid_range) & (ranges <= self.max_valid_range)
+        valid_ranges = ranges[valid_mask]
+        
+        if len(valid_ranges) == 0:
+            return "clear"
+            
+        # 🔥 温和的前方扇区检测 - 较小范围
+        total_angles = len(ranges)
+        front_start = int(total_angles * 5.8/12.0)  # 约-10度  
+        front_end = int(total_angles * 6.2/12.0)    # 约+10度
+        
+        front_ranges = ranges[front_start:front_end]
+        front_valid_mask = (front_ranges >= self.min_valid_range) & (front_ranges <= self.max_valid_range)
+        valid_front = front_ranges[front_valid_mask]
+        
+        if len(valid_front) == 0:
+            return "clear"
+            
+        front_min_distance = np.min(valid_front)
+        
+        # 🔥 温和的距离判断
+        emergency_points = np.sum(valid_front < self.emergency_distance)
+        warning_points = np.sum(valid_front < self.warning_distance)
+        
+        # 🔥 需要更多点确认才认为有障碍
+        if emergency_points >= 5 and front_min_distance < self.emergency_distance:
+            return "close_obstacle"  # 改为较温和的描述
+        elif warning_points >= 8 and front_min_distance < self.warning_distance:
+            return "approaching_obstacle"  # 温和描述
+        elif np.sum(valid_front < self.safe_distance) >= 10:
+            return "distant_obstacle"  # 远距离障碍
+        else:
+            return "clear"
+            
+    def apply_gentle_history_filter(self, current_result):
+        """🔥 温和的历史过滤"""
+        # 更新历史记录
+        self.obstacle_history.append(current_result)
+        if len(self.obstacle_history) > self.obstacle_history_size:
+            self.obstacle_history.pop(0)
+            
+        # 🔥 障碍物需要连续确认
+        if current_result in ["close_obstacle", "approaching_obstacle"]:
+            if len(self.obstacle_history) >= 3:
+                obstacle_count = sum(1 for r in self.obstacle_history[-3:] 
+                                   if r in ["close_obstacle", "approaching_obstacle"])
+                if obstacle_count >= 3:  # 连续3次确认
+                    return current_result
+            return "clear"  # 未确认则返回清除
+            
+        # 🔥 远距离障碍需要更多确认
+        elif current_result == "distant_obstacle":
+            if len(self.obstacle_history) >= 5:
+                distant_count = sum(1 for r in self.obstacle_history[-5:] 
+                                  if r != "clear")
+                if distant_count >= 4:
+                    return "distant_obstacle"
+            return "clear"
+                
+        # 🔥 清除状态立即生效
+        else:
+            self.consecutive_safe_readings += 1
+            return "clear"
+            
+    def can_provide_gentle_assistance(self):
+        """🔥 判断是否可以提供温和辅助"""
+        current_time = rospy.Time.now().to_sec()
+        
+        # 检查冷却时间
+        if current_time - self.last_avoidance_time < self.avoidance_cooldown:
+            return False
+            
+        # 🔥 只在导航过程中提供辅助
+        if not self.is_navigating:
+            return False
+            
+        # 🔥 需要足够的安全读数才能干预
+        if self.consecutive_safe_readings < self.required_safe_readings:
+            return False
+            
+        return True
+        
+    def provide_gentle_assistance(self, obstacle_status):
+        """🔥 提供温和的导航辅助"""
+        if obstacle_status == "clear":
+            return
+            
+        # 🔥 根据障碍物类型提供不同程度的辅助
+        assistance_cmd = self.calculate_gentle_assistance(obstacle_status)
+        
+        if assistance_cmd:
+            self.gentle_avoidance_pub.publish(assistance_cmd)
+            self.last_avoidance_time = rospy.Time.now().to_sec()
+            
+            rospy.logdebug("🔧 Gentle assistance provided: %s", obstacle_status)
+            
+    def calculate_gentle_assistance(self, obstacle_status):
+        """🔥 计算温和的辅助命令"""
+        if not self.laser_data:
+            return None
+            
+        assistance = Twist()
+        
+        # 🔥 根据障碍物状态提供不同的辅助
+        if obstacle_status == "close_obstacle":
+            # 最近障碍：温和的减速建议
+            assistance.linear.x = -0.1  # 轻微减速
+            assistance.angular.z = 0.0
+        elif obstacle_status == "approaching_obstacle":
+            # 接近障碍：极轻微的调整
+            assistance.linear.x = -0.05  # 非常轻微的减速
+            assistance.angular.z = self.calculate_gentle_steering()
+        elif obstacle_status == "distant_obstacle":
+            # 远距离障碍：仅提供转向建议
+            assistance.linear.x = 0.0
+            assistance.angular.z = self.calculate_gentle_steering() * 0.5
+        else:
+            return None
+            
+        return assistance
+        
+    def calculate_gentle_steering(self):
+        """🔥 计算温和的转向辅助"""
+        if not self.laser_data:
+            return 0.0
+            
+        ranges = np.array(self.laser_data.ranges)
+        valid_mask = (ranges >= self.min_valid_range) & (ranges <= self.max_valid_range)
+        
+        # 检查左右两侧的空间
+        total_angles = len(ranges)
+        
+        # 左侧扇区
+        left_start = int(total_angles * 6.2/12.0)
+        left_end = int(total_angles * 7.0/12.0)
+        left_ranges = ranges[left_start:left_end]
+        left_valid = left_ranges[valid_mask[left_start:left_end]]
+        left_space = np.mean(left_valid) if len(left_valid) > 0 else 0.0
+        
+        # 右侧扇区
+        right_start = int(total_angles * 5.0/12.0)
+        right_end = int(total_angles * 5.8/12.0)
+        right_ranges = ranges[right_start:right_end]
+        right_valid = right_ranges[valid_mask[right_start:right_end]]
+        right_space = np.mean(right_valid) if len(right_valid) > 0 else 0.0
+        
+        # 🔥 非常温和的转向建议
+        if left_space > right_space + 0.2:  # 左侧空间更大
+            return 0.1  # 轻微左转
+        elif right_space > left_space + 0.2:  # 右侧空间更大
+            return -0.1  # 轻微右转
+        else:
+            return 0.0  # 无转向建议
+            
+    def get_gentle_fusion_stats(self):
+        """获取温和融合统计信息"""
+        return {
+            'robot_state': self.robot_state,
+            'current_zone': self.current_zone,
+            'allow_gentle_assist': self.allow_gentle_assist,
+            'assistance_enabled': self.assistance_enabled,
+            'last_obstacle_status': self.last_published_status,
+            'obstacle_history': self.obstacle_history[-3:],  # 最近3次记录
+            'front_obstacle': self.front_obstacle_status,
+            'lane_compliance': self.lane_compliance,
+            'is_navigating': self.is_navigating,
+            'consecutive_safe_readings': self.consecutive_safe_readings
+        }
+
+if __name__ == '__main__':
+    try:
+        fusion = GentleSensorFusion()
+        
+        # 定期打印统计信息
+        def print_gentle_stats(event):
+            stats = fusion.get_gentle_fusion_stats()
+            rospy.loginfo("Gentle Fusion: State=%s, Zone=%s, Assist=%s, Status=%s, Nav=%s, Safe=%d", 
+                         stats['robot_state'], stats['current_zone'], stats['allow_gentle_assist'],
+                         stats['last_obstacle_status'], stats['is_navigating'], stats['consecutive_safe_readings'])
+                         
+        stats_timer = rospy.Timer(rospy.Duration(30.0), print_gentle_stats)
+        
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        rospy.loginfo("GentleSensorFusion terminated")
+    except Exception as e:
+        rospy.logerr("GentleSensorFusion fatal error: %s", str(e))

@@ -1,0 +1,94 @@
+<launch>
+  <!-- AMCL定位 -->
+  <node pkg="amcl" type="amcl" name="amcl" output="screen">
+    <rosparam file="$(find ros_warehouse_robot)/config/amcl_params.yaml" command="load" />
+    
+    <!-- 重要: 设置正确的帧名称 -->
+    <param name="odom_frame_id" value="odom"/>
+    <param name="base_frame_id" value="base_link"/>
+    <param name="global_frame_id" value="map"/>
+    
+    <!-- 优化的AMCL参数 -->
+    <param name="min_particles" value="100"/>
+    <param name="max_particles" value="2000"/>
+    <param name="initial_pose_x" value="0.0"/>
+    <param name="initial_pose_y" value="1.5"/>
+    <param name="initial_pose_a" value="-1.47"/>
+    <param name="initial_cov_xx" value="0.25"/>
+    <param name="initial_cov_yy" value="0.25"/>
+    <param name="initial_cov_aa" value="0.2"/>
+    
+    <!-- 更新频率 -->
+    <param name="update_min_d" value="0.1"/>
+    <param name="update_min_a" value="0.1"/>
+    <param name="resample_interval" value="1"/>
+    
+    <!-- 激光参数 -->
+    <param name="laser_max_range" value="8.0"/>
+    <param name="laser_min_range" value="0.1"/>
+    <param name="laser_max_beams" value="180"/>
+    <param name="laser_z_hit" value="0.95"/>
+    <param name="laser_z_short" value="0.01"/>
+    <param name="laser_z_max" value="0.01"/>
+    <param name="laser_z_rand" value="0.03"/>
+    <param name="laser_sigma_hit" value="0.2"/>
+    <param name="laser_lambda_short" value="0.1"/>
+    
+    <!-- 里程计模型 -->
+    <param name="odom_model_type" value="diff"/>
+    <param name="odom_alpha1" value="0.2"/>
+    <param name="odom_alpha2" value="0.2"/>
+    <param name="odom_alpha3" value="0.2"/>
+    <param name="odom_alpha4" value="0.2"/>
+  </node>
+
+  <!-- 地图服务器 -->
+  <node name="map_server" pkg="map_server" type="map_server" 
+        args="$(find ros_warehouse_robot)/maps/warehouse_map.yaml" output="screen">
+    <param name="frame_id" value="map"/>
+  </node>
+
+  <!-- move_base导航 -->
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <!-- 配置文件 -->
+    <rosparam file="$(find ros_warehouse_robot)/config/move_base.yaml" command="load" />
+    <rosparam file="$(find ros_warehouse_robot)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find ros_warehouse_robot)/config/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find ros_warehouse_robot)/config/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find ros_warehouse_robot)/config/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find ros_warehouse_robot)/config/base_local_planner_params.yaml" command="load" />
+    
+    <!-- 重映射话题 -->
+    <remap from="cmd_vel" to="cmd_vel"/>
+    <remap from="odom" to="odom"/>
+    <remap from="scan" to="scan"/>
+    <remap from="map" to="map"/>
+    
+    <!-- 重要参数 -->
+    <param name="base_global_planner" value="navfn/NavfnROS"/>
+    <param name="base_local_planner" value="base_local_planner/TrajectoryPlannerROS"/>
+    <param name="controller_frequency" value="10.0"/>
+    <param name="planner_frequency" value="1.0"/>
+    <param name="oscillation_timeout" value="0.0"/>
+    <param name="oscillation_distance" value="0.5"/>
+    
+    <!-- 恢复行为 -->
+    <param name="recovery_behavior_enabled" value="true"/>
+    <param name="clearing_rotation_allowed" value="true"/>
+    <param name="shutdown_costmaps" value="false"/>
+    
+    <!-- 超时设置 -->
+    <param name="planner_patience" value="5.0"/>
+    <param name="controller_patience" value="15.0"/>
+    <param name="conservative_reset_dist" value="3.0"/>
+    <param name="max_planning_retries" value="3"/>
+  </node>
+
+  <!-- 静态TF变换 -->
+  <node pkg="tf" type="static_transform_publisher" name="map_to_odom" 
+        args="0 0 0 0 0 0 map odom 100" />
+
+  <!-- 🔥 REMOVED: robot_state_publisher (已在warehouse_simulation.launch中定义) -->
+
+  <!-- 🔥 REMOVED: diagnostic_aggregator (已在warehouse_simulation.launch中定义) -->
+</launch>

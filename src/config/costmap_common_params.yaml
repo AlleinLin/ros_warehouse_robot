@@ -1,0 +1,132 @@
+# 车道线友好的代价地图参数 - 支持move_base导航
+
+# 机器人几何 - 与move_base.yaml保持一致
+footprint: [[-0.30, -0.30], [-0.30, 0.30], [0.30, 0.30], [0.30, -0.30]]
+robot_radius: 0.32
+
+# 障碍物处理 - 适应仓库车道线环境
+obstacle_range: 2.5      # 减小障碍物检测范围，避免过度检测车道线
+raytrace_range: 3.0      # 适中的光线追踪范围
+
+# 代价函数参数 - 车道线友好
+inflation_radius: 0.45   # 减小膨胀半径，允许更接近车道线边缘
+cost_scaling_factor: 8.0 # 降低代价缩放，减少过度保守
+
+# 代价值
+lethal_cost_threshold: 100
+unknown_cost_value: 255
+trinary_costmap: true
+
+# 地图类型和更新
+map_type: costmap
+track_unknown_space: false
+use_maximum: false
+
+# 观测源配置 - 多传感器融合
+observation_sources: laser_scan_sensor
+
+# 激光雷达传感器配置 - 优化参数
+laser_scan_sensor:
+  sensor_frame: laser_link
+  data_type: LaserScan
+  topic: scan
+  marking: true
+  clearing: true
+  expected_update_rate: 0.0
+  observation_persistence: 0.0
+  inf_is_valid: false
+  min_obstacle_height: 0.0
+  max_obstacle_height: 2.0
+  obstacle_range: 2.5      # 与上面保持一致
+  raytrace_range: 3.0      # 与上面保持一致
+
+# 插件配置 - ROS Melodic格式
+plugins:
+  - {name: static_layer, type: "costmap_2d::StaticLayer"}
+  - {name: obstacle_layer, type: "costmap_2d::ObstacleLayer"}  
+  - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
+
+# 静态层参数 - 地图基础
+static_layer:
+  enabled: true
+  subscribe_to_updates: false
+  map_subscribe_transient_local: true
+
+# 障碍物层参数 - 车道线友好设置
+obstacle_layer:
+  enabled: true
+  max_obstacle_height: 2.0
+  origin_z: 0.0
+  z_resolution: 0.2
+  z_voxels: 10
+  unknown_threshold: 15
+  mark_threshold: 0
+  combination_method: 1
+  track_unknown_space: false
+  obstacle_range: 2.5      # 减小范围，避免过度检测
+  raytrace_range: 3.0      # 适中的清除范围
+  publish_voxel_map: false
+  
+  # 动态障碍物处理
+  footprint_clearing_enabled: true
+  max_obstacle_height: 0.6  # 只考虑地面障碍物
+  min_obstacle_height: 0.0
+
+# 膨胀层参数 - 适应车道线导航
+inflation_layer:
+  enabled: true
+  cost_scaling_factor: 8.0  # 降低代价缩放
+  inflation_radius: 0.45    # 减小膨胀半径
+  
+  # 膨胀代价计算
+  inscribed_radius: 0.32    # 内切圆半径
+  weight: 10.0              # 膨胀权重
+
+# 全局代价地图特定参数
+global_costmap:
+  global_frame: map
+  robot_base_frame: base_link
+  update_frequency: 3.0     # 降低更新频率，减少计算负载
+  publish_frequency: 2.0
+  static_map: true
+  transform_tolerance: 0.5
+  
+  # 代价地图大小 - 覆盖整个仓库
+  width: 20.0
+  height: 20.0
+  resolution: 0.05
+  origin_x: -10.0
+  origin_y: -10.0
+
+# 局部代价地图特定参数  
+local_costmap:
+  global_frame: odom
+  robot_base_frame: base_link
+  update_frequency: 8.0     # 提高局部更新频率
+  publish_frequency: 4.0
+  static_map: false
+  rolling_window: true
+  
+  # 局部窗口大小 - 适应车道线宽度
+  width: 5.0               # 稍大的局部窗口
+  height: 5.0
+  resolution: 0.025        # 更高分辨率
+  
+  # 变换容差
+  transform_tolerance: 0.3
+  
+  # 滚动窗口参数
+  origin_x: 0.0
+  origin_y: 0.0
+
+# 车道线特殊处理参数
+lane_following_support:
+  # 减少对黄色车道线的障碍物标记
+  ignore_lane_colors: true
+  lane_color_tolerance: 30
+  
+  # 车道线区域的特殊处理
+  lane_area_cost_reduction: 0.5
+  
+  # 允许在车道线区域更灵活的路径规划
+  lane_path_bias: 2.0
